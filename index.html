@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>食べきりチャレンジ</title>
+    <link href="style.css" rel="stylesheet" type="text/css" media="all">
+</head>
+<body>
+    <div class="container">
+        <h1>🍽️ 食べきりチャレンジ</h1>
+        <p style="text-align: center; margin-bottom: 30px; color: #555;">食材ロスを減らして地球にもお財布にも優しく！</p>
+
+        <div class="section">
+            <h2>📦 食材登録</h2>
+            <div class="form-group">
+                <label for="ingredientName">食材名</label>
+                <input type="text" id="ingredientName" placeholder="例: レタス, 鶏もも肉">
+            </div>
+            <div class="form-group">
+                <label for="purchaseDate">購入日 / 賞味期限</label>
+                <input type="date" id="purchaseDate">
+            </div>
+            <div class="form-group">
+                <label for="storageLocation">保存場所</label>
+                <select id="storageLocation">
+                    <option value="refrigerator">冷蔵庫</option>
+                    <option value="freezer">冷凍庫</option>
+                    <option value="roomTemp">常温</option>
+                </select>
+            </div>
+            <button class="btn" onclick="addIngredient()">食材を登録</button>
+        </div>
+
+        <div class="section">
+            <h2>🚨 危機的食材</h2>
+            <div id="criticalIngredients" class="ingredient-list">
+                <div class="ingredient-item critical">
+                    <h3>鶏もも肉</h3>
+                    <p>鮮度: 今日中に使い切り！</p>
+                    <p>購入日: 2025-05-25</p>
+                    <p>保存: 冷蔵庫</p>
+                </div>
+                <div class="ingredient-item warning">
+                    <h3>豆腐</h3>
+                    <p>鮮度: 明日までに使い切り！</p>
+                    <p>購入日: 2025-05-24</p>
+                    <p>保存: 冷蔵庫</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📝 おすすめレシピ</h2>
+            <div id="recipeSuggestions" class="recipe-suggestions">
+                <div class="recipe-card">
+                    <img src="https://via.placeholder.com/100" alt="鶏肉と野菜の炒め物">
+                    <div>
+                        <h4>鶏肉と野菜のピリ辛炒め</h4>
+                        <p>消費したい食材: **鶏もも肉**, 玉ねぎ, ピーマン</p>
+                        <ul>
+                            <li>鶏もも肉を一口大に切り、酒と醤油で下味をつける。</li>
+                            <li>玉ねぎ、ピーマンを切り、フライパンで炒める。</li>
+                            <li>鶏肉を加えて火が通るまで炒め、甜麺醤と豆板醤で味付け。</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="recipe-card">
+                    <img src="https://via.placeholder.com/100" alt="豆腐ステーキ">
+                    <div>
+                        <h4>カリカリ豆腐ステーキ</h4>
+                        <p>消費したい食材: **豆腐**, ネギ, 醤油</p>
+                        <ul>
+                            <li>豆腐を水切りし、片栗粉をまぶしてフライパンで焼く。</li>
+                            <li>醤油、みりん、生姜を合わせたタレを絡める。</li>
+                        </ul>
+                    </div>
+                </div>
+                </div>
+        </div>
+
+        <div class="section contribution-score">
+            <h2>✨ 食品ロス貢献度</h2>
+            <div class="score-value">850g</div>
+            <p class="score-detail">今月これまでに削減した食品ロス</p>
+            <p class="score-detail">CO2排出量削減: 1.7kg相当 | 節約金額: ¥850相当</p>
+            <p style="margin-top: 15px;">バッジ: 今月のフードロスチャレンジャー！</p>
+            <button class="btn" style="margin-top: 20px;">SNSで共有</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+    
+</body>
+</html>
