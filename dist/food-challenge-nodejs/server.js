@@ -4,12 +4,12 @@ const cors = require('cors');
 const db = require('./database'); // データベース接続をインポート
 
 const app = express();
-const port = process.env.PORT || 3000; // Renderが割り当てるポートまたはローカルの3000番
+const port = process.env.PORT || 3000;
 
-app.use(cors()); // CORSを有効にする（フロントエンドからのアクセスを許可）
-app.use(express.json()); // JSON形式のリクエストボディをパースするミドルウェア
+app.use(cors());
+app.use(express.json());
 
-// 鮮度を予測する簡易関数（PHP版と同様、より複雑なロジックは別途実装）
+// ... predictFreshness関数は省略 ... (変更なし)
 function predictFreshness(purchaseDate, storageLocation) {
     const today = new Date();
     const purchased = new Date(purchaseDate);
@@ -42,6 +42,7 @@ function predictFreshness(purchaseDate, storageLocation) {
     return 'normal';
 }
 
+
 // --- API エンドポイント ---
 
 // 食材登録
@@ -57,6 +58,8 @@ app.post('/api/ingredients', (req, res) => {
         [name, purchaseDate, storageLocation],
         function(err) {
             if (err) {
+                // エラーログをより詳細に出力
+                console.error('Database insert error:', err.message);
                 return res.status(500).json({ status: 'error', message: '食材の登録に失敗しました: ' + err.message });
             }
             res.status(201).json({ status: 'success', message: '食材が正常に登録されました。', id: this.lastID });
@@ -66,8 +69,11 @@ app.post('/api/ingredients', (req, res) => {
 
 // 食材リスト取得
 app.get('/api/ingredients', (req, res) => {
+    // エラーメッセージが示していたのはこの行なので、dbが確実に利用可能であることを保証する
     db.all(`SELECT * FROM ingredients ORDER BY added_at DESC`, [], (err, rows) => {
         if (err) {
+            // エラーログをより詳細に出力
+            console.error('Database select error:', err.message);
             return res.status(500).json({ status: 'error', message: '食材リストの取得に失敗しました: ' + err.message });
         }
         const ingredientsWithFreshness = rows.map(ingredient => ({
@@ -82,13 +88,11 @@ app.get('/api/ingredients', (req, res) => {
 app.get('/api/contribution', (req, res) => {
     db.get(`SELECT SUM(amount_g) AS total_g FROM food_loss_contribution`, [], (err, row) => {
         if (err) {
+            console.error('Database get sum error:', err.message);
             return res.status(500).json({ status: 'error', message: '貢献度スコアの取得に失敗しました: ' + err.message });
         }
         const totalLossSaved = row.total_g || 0;
-
-        // 簡易的なCO2換算 (例: 1gあたり0.002kg-CO2eを想定)
-        const co2Equivalent = Math.round(totalLossSaved * 0.002 * 10) / 10; // 小数点以下1桁
-        // 簡易的な節約金額 (例: 1gあたり1円を想定)
+        const co2Equivalent = Math.round(totalLossSaved * 0.002 * 10) / 10;
         const savedAmount = Math.round(totalLossSaved * 1);
 
         res.json({
@@ -100,7 +104,7 @@ app.get('/api/contribution', (req, res) => {
     });
 });
 
-// (開発用) 貢献度を加算するエンドポイント - 実際には食材消費時に呼び出す
+// (開発用) 貢献度を加算するエンドポイント
 app.post('/api/contribution/add', (req, res) => {
     const { amount_g } = req.body;
 
@@ -110,14 +114,25 @@ app.post('/api/contribution/add', (req, res) => {
 
     db.run(`INSERT INTO food_loss_contribution (amount_g) VALUES (?)`, [amount_g], function(err) {
         if (err) {
+            console.error('Database insert contribution error:', err.message);
             return res.status(500).json({ status: 'error', message: '貢献度の追加に失敗しました: ' + err.message });
         }
         res.status(201).json({ status: 'success', message: '貢献度が追加されました。', id: this.lastID });
     });
 });
 
+// --- サーバー起動部分の変更 ---
+// データベースの 'open' イベントを待ってからサーバーを起動する
+db.on('open', () => {
+    app.listen(port, () => {
+        console.log(`Server running on port ${port}`);
+    });
+});
 
-// サーバー起動
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+// データベースのエラーハンドリング
+db.on('error', (err) => {
+    console.error('Database error event:', err.message);
+    // データベースエラーが発生した場合の適切な処理
+    // プロセスを終了させるか、エラーをログに記録して続行するかなどを検討
+    process.exit(1); // アプリケーションを終了させる例
 });
