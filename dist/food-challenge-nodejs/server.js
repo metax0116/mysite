@@ -1,42 +1,55 @@
 // server.js
 const express = require('express');
 const cors = require('cors');
+const path = require('path'); // pathモジュールをインポート
 const db = require('./database'); // データベース接続をインポート
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3000; // Renderが割り当てるポート、またはローカルの3000番
 
-app.use(cors());
-app.use(express.json());
+// --- ミドルウェア ---
+app.use(cors()); // CORSを有効にする（フロントエンドからのアクセスを許可）
+app.use(express.json()); // JSON形式のリクエストボディをパースするミドルウェア
 
-// ... predictFreshness関数は省略 ... (変更なし)
+// 静的ファイルの配信設定
+// 'public' フォルダ内のファイルをWebサーバーのルートとして公開します
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ルートURL ('/') へのアクセス時に index.html を配信します
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+
+// --- 鮮度予測の簡易関数 ---
 function predictFreshness(purchaseDate, storageLocation) {
     const today = new Date();
     const purchased = new Date(purchaseDate);
     const diffTime = Math.abs(today.getTime() - purchased.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // 日数差を計算
 
     if (storageLocation === 'refrigerator') {
-        if (diffDays <= 1) {
-            return 'critical';
-        } else if (diffDays <= 3) {
-            return 'warning';
+        if (diffDays <= 1) { // 1日以内
+            return 'critical'; // 今日中に使い切り
+        } else if (diffDays <= 3) { // 3日以内
+            return 'warning'; // 明日までに使い切り
         } else {
-            return 'normal';
+            return 'normal'; // 良好
         }
     } else if (storageLocation === 'freezer') {
-        if (diffDays <= 30) {
+        // 冷凍庫は長持ちすると仮定（簡易的なロジック）
+        if (diffDays <= 30) { // 30日以内
             return 'normal';
         } else {
-            return 'warning';
+            return 'warning'; // 長期保存なら注意
         }
     } else if (storageLocation === 'roomTemp') {
-        if (diffDays <= 0) {
-            return 'critical';
-        } else if (diffDays <= 1) {
-            return 'warning';
+        if (diffDays <= 0) { // 購入日当日
+            return 'critical'; // 今日中に使い切り
+        } else if (diffDays <= 1) { // 1日以内
+            return 'warning'; // 明日までに使い切り
         } else {
-            return 'critical';
+            return 'critical'; // 常温は傷みやすいと厳しく判断
         }
     }
     return 'normal';
@@ -58,7 +71,6 @@ app.post('/api/ingredients', (req, res) => {
         [name, purchaseDate, storageLocation],
         function(err) {
             if (err) {
-                // エラーログをより詳細に出力
                 console.error('Database insert error:', err.message);
                 return res.status(500).json({ status: 'error', message: '食材の登録に失敗しました: ' + err.message });
             }
@@ -69,10 +81,8 @@ app.post('/api/ingredients', (req, res) => {
 
 // 食材リスト取得
 app.get('/api/ingredients', (req, res) => {
-    // エラーメッセージが示していたのはこの行なので、dbが確実に利用可能であることを保証する
     db.all(`SELECT * FROM ingredients ORDER BY added_at DESC`, [], (err, rows) => {
         if (err) {
-            // エラーログをより詳細に出力
             console.error('Database select error:', err.message);
             return res.status(500).json({ status: 'error', message: '食材リストの取得に失敗しました: ' + err.message });
         }
@@ -91,8 +101,11 @@ app.get('/api/contribution', (req, res) => {
             console.error('Database get sum error:', err.message);
             return res.status(500).json({ status: 'error', message: '貢献度スコアの取得に失敗しました: ' + err.message });
         }
-        const totalLossSaved = row.total_g || 0;
-        const co2Equivalent = Math.round(totalLossSaved * 0.002 * 10) / 10;
+        const totalLossSaved = row.total_g || 0; // NULLの場合は0
+
+        // 簡易的なCO2換算 (例: 1gあたり0.002kg-CO2eを想定)
+        const co2Equivalent = Math.round(totalLossSaved * 0.002 * 10) / 10; // 小数点以下1桁
+        // 簡易的な節約金額 (例: 1gあたり1円を想定)
         const savedAmount = Math.round(totalLossSaved * 1);
 
         res.json({
@@ -104,7 +117,7 @@ app.get('/api/contribution', (req, res) => {
     });
 });
 
-// (開発用) 貢献度を加算するエンドポイント
+// (開発用) 貢献度を加算するエンドポイント - 実際には食材消費時に呼び出す
 app.post('/api/contribution/add', (req, res) => {
     const { amount_g } = req.body;
 
@@ -121,18 +134,22 @@ app.post('/api/contribution/add', (req, res) => {
     });
 });
 
-// --- サーバー起動部分の変更 ---
-// データベースの 'open' イベントを待ってからサーバーを起動する
+
+// --- サーバー起動部分 ---
+// データベースの 'open' イベントを待ってからExpressサーバーを起動する
+// これにより、dbオブジェクトが完全に利用可能になってからAPIリクエストを処理できます
 db.on('open', () => {
     app.listen(port, () => {
         console.log(`Server running on port ${port}`);
+        console.log(`Access frontend: http://localhost:${port}/`);
+        console.log(`Access API: http://localhost:${port}/api/ingredients`);
     });
 });
 
 // データベースのエラーハンドリング
+// データベース接続中にエラーが発生した場合の処理
 db.on('error', (err) => {
-    console.error('Database error event:', err.message);
-    // データベースエラーが発生した場合の適切な処理
-    // プロセスを終了させるか、エラーをログに記録して続行するかなどを検討
+    console.error('Fatal Database error event:', err.message);
+    // データベースエラーが発生した場合は、アプリケーションを終了させるなどの対応が必要です
     process.exit(1); // アプリケーションを終了させる例
 });
