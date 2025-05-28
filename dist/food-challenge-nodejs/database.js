@@ -3,7 +3,7 @@ const { Pool } = require('pg'); // PostgreSQL用のPoolをインポート
 
 // データベース接続URLを環境変数から取得
 // ローカル開発用にデフォルト値も設定しておく（後でSupabaseのURIに置き換える）
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:[2024gakusei]@db.nleixvhsrjuqsvbtgmwl.supabase.co:5432/postgres';
+const DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:[2024gakusei]@db.nleixvhsrjuqsvbtgmwl.supabase.co:5432/postgres";
 
 const pool = new Pool({
     connectionString: DATABASE_URL,
