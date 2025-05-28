@@ -1,5 +1,5 @@
 // server.js
-require('dotenv').config();
+require('dotenv').config(); // 環境変数を読み込むために dotenv を一番最初に設定
 
 const express = require('express');
 const cors = require('cors');
@@ -10,13 +10,13 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // --- ミドルウェア ---
-app.use(cors());
-app.use(express.json());
+app.use(cors()); // CORSを有効にする（フロントエンドからのアクセスを許可）
+app.use(express.json()); // JSON形式のリクエストボディをパースするミドルウェア
 
-// 静的ファイルの配信設定
+// 静的ファイルの配信設定: 'public' フォルダ内のファイルをWebサーバーのルートとして公開します
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ルートURL ('/') へのアクセス時に index.html を配信
+// ルートURL ('/') へのアクセス時に index.html を配信します
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -27,29 +27,30 @@ function predictFreshness(purchaseDate, storageLocation) {
     const today = new Date();
     const purchased = new Date(purchaseDate);
     const diffTime = Math.abs(today.getTime() - purchased.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // 日数差を計算
 
     if (storageLocation === 'refrigerator') {
-        if (diffDays <= 1) {
-            return 'critical';
-        } else if (diffDays <= 3) {
-            return 'warning';
+        if (diffDays <= 1) { // 1日以内
+            return 'critical'; // 今日中に使い切り
+        } else if (diffDays <= 3) { // 3日以内
+            return 'warning'; // 明日までに使い切り
         } else {
-            return 'normal';
+            return 'normal'; // 良好
         }
     } else if (storageLocation === 'freezer') {
-        if (diffDays <= 30) {
+        // 冷凍庫は長持ちすると仮定（簡易的なロジック）
+        if (diffDays <= 30) { // 30日以内
             return 'normal';
         } else {
-            return 'warning';
+            return 'warning'; // 長期保存なら注意
         }
     } else if (storageLocation === 'roomTemp') {
-        if (diffDays <= 0) {
-            return 'critical';
-        } else if (diffDays <= 1) {
-            return 'warning';
+        if (diffDays <= 0) { // 購入日当日
+            return 'critical'; // 今日中に使い切り
+        } else if (diffDays <= 1) { // 1日以内
+            return 'warning'; // 明日までに使い切り
         } else {
-            return 'critical';
+            return 'critical'; // 常温は傷みやすいと厳しく判断
         }
     }
     return 'normal';
@@ -59,7 +60,7 @@ function predictFreshness(purchaseDate, storageLocation) {
 // --- API エンドポイント ---
 
 // 食材登録
-app.post('/api/ingredients', async (req, res) => { // async を追加
+app.post('/api/ingredients', async (req, res) => {
     const { name, purchaseDate, storageLocation } = req.body;
 
     if (!name || !purchaseDate || !storageLocation) {
@@ -67,8 +68,8 @@ app.post('/api/ingredients', async (req, res) => { // async を追加
     }
 
     try {
-        const result = await db.query( // db.run の代わりに db.query を使用
-            `INSERT INTO ingredients (name, purchase_date, storage_location) VALUES ($1, $2, $3) RETURNING id`, // $1, $2, $3 でプレースホルダ
+        const result = await db.query( // db.query を使用
+            `INSERT INTO ingredients (name, purchase_date, storage_location) VALUES ($1, $2, $3) RETURNING id`, // PostgreSQLのプレースホルダ
             [name, purchaseDate, storageLocation]
         );
         res.status(201).json({ status: 'success', message: '食材が正常に登録されました。', id: result.rows[0].id });
@@ -79,9 +80,9 @@ app.post('/api/ingredients', async (req, res) => { // async を追加
 });
 
 // 食材リスト取得
-app.get('/api/ingredients', async (req, res) => { // async を追加
+app.get('/api/ingredients', async (req, res) => {
     try {
-        const result = await db.query(`SELECT * FROM ingredients ORDER BY added_at DESC`); // db.all の代わりに db.query を使用
+        const result = await db.query(`SELECT * FROM ingredients ORDER BY added_at DESC`); // db.query を使用
         const ingredientsWithFreshness = result.rows.map(ingredient => ({ // result.rows でデータを取得
             ...ingredient,
             status: predictFreshness(ingredient.purchase_date, ingredient.storage_location)
@@ -94,9 +95,9 @@ app.get('/api/ingredients', async (req, res) => { // async を追加
 });
 
 // 食品ロス貢献度スコア取得
-app.get('/api/contribution', async (req, res) => { // async を追加
+app.get('/api/contribution', async (req, res) => {
     try {
-        const result = await db.query(`SELECT SUM(amount_g) AS total_g FROM food_loss_contribution`); // db.get の代わりに db.query
+        const result = await db.query(`SELECT SUM(amount_g) AS total_g FROM food_loss_contribution`); // db.query を使用
         const totalLossSaved = result.rows[0].total_g || 0; // result.rows[0] で最初の行を取得
 
         const co2Equivalent = Math.round(totalLossSaved * 0.002 * 10) / 10;
@@ -115,7 +116,7 @@ app.get('/api/contribution', async (req, res) => { // async を追加
 });
 
 // (開発用) 貢献度を加算するエンドポイント
-app.post('/api/contribution/add', async (req, res) => { // async を追加
+app.post('/api/contribution/add', async (req, res) => {
     const { amount_g } = req.body;
 
     if (typeof amount_g !== 'number' || amount_g <= 0) {
@@ -134,10 +135,7 @@ app.post('/api/contribution/add', async (req, res) => { // async を追加
 
 // --- サーバー起動部分 ---
 // データベース接続はdatabase.jsでPoolを初期化する際に自動的に行われるため、
-// ここでは直接listenを開始します。Poolは非同期で接続を確立するため、
-// APIリクエスト時にエラーが発生した場合も、pgライブラリが適切にハンドリングします。
-// ただし、起動時にデータベースが完全に利用可能であることを確実にしたい場合は、
-// Poolのconnectイベントを待つことも可能です（database.jsでログを確認）。
+// ここでは直接listenを開始します。
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
     console.log(`Access frontend: http://localhost:${port}/`);
