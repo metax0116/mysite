@@ -1,6 +1,13 @@
 // server.js
 require('dotenv').config(); // 環境変数を読み込むために dotenv を一番最初に設定
 
+
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = 'https://nleixvhsrjuqsvbtgmwl.supabase.co'
+const supabaseKey = process.env.SUPABASE_KEY
+const supabase = createClient(supabaseUrl, supabaseKey)
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
