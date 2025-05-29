@@ -1,5 +1,6 @@
 // server.js
-require('dotenv').config(); // 環境変数を読み込むために dotenv を一番最初に設定
+require('dotenv').config(); 
+ // 環境変数を読み込むために dotenv を一番最初に設定
 
 const express = require('express');
 const cors = require('cors');
