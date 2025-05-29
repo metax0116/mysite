@@ -1,6 +1,6 @@
 // script.js
 // サーバーのベースURL (ローカル開発用。Renderデプロイ後はRenderのURLに書き換える)
-const API_BASE_URL = 'https://food-challenge-pa9p.onrender.com/api';
+const API_BASE_URL = window.location.origin + '/api';
 
 // 食材を登録する関数
 async function addIngredient() {
