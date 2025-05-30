@@ -1,5 +1,4 @@
-// script.js
-// サーバーのベースURL (Renderデプロイ後に変更)
+// ✅ APIのベースURLを環境に応じて自動設定（RenderでもローカルでもOK）
 const API_BASE_URL = window.location.origin + '/api';
 
 // 食材を登録する関数
@@ -19,65 +18,63 @@ async function addIngredient() {
             });
             const result = await response.json();
 
-            if (result.status === 'success') {
-                alert(`「${name}」を登録しました。\n購入日/期限: ${date}\n保存場所: ${storage}`);
+            if (response.ok && result.status === 'success') {
+                alert(`「${name}」を登録しました。`);
                 displayIngredients();
                 document.getElementById('ingredientName').value = '';
                 document.getElementById('purchaseDate').value = '';
+                document.getElementById('storageLocation').value = 'refrigerator';
             } else {
-                alert(`登録に失敗しました: ${result.message}`);
+                alert(`登録に失敗しました: ${result.message || '不明なエラー'}`);
+                console.error('API Error:', result.message);
             }
         } catch (error) {
             console.error('Error adding ingredient:', error);
-            alert('食材の登録中にエラーが発生しました。');
+            alert('ネットワークエラー：サーバーが起動しているか確認してください。');
         }
     } else {
-        alert('食材名、購入日/賞味期限、保存場所を入力してください。');
+        alert('全項目を入力してください。');
     }
 }
 
-// 食材リストを表示する関数
+// 食材リスト表示
 async function displayIngredients() {
-    const criticalList = document.getElementById('criticalIngredients');
-    criticalList.innerHTML = '<p style="text-align: center; color: #888;">読み込み中...</p>'; // 読み込み中表示
+    const list = document.getElementById('criticalIngredients');
+    list.innerHTML = '<p style="text-align: center; color: #888;">読み込み中...</p>';
 
     try {
         const response = await fetch(`${API_BASE_URL}/ingredients`);
         const result = await response.json();
 
-        if (result.status === 'success' && result.ingredients) {
-            criticalList.innerHTML = ''; // クリア
+        if (response.ok && result.status === 'success') {
+            list.innerHTML = '';
             if (result.ingredients.length === 0) {
-                criticalList.innerHTML = '<p style="text-align: center; color: #888;">登録されている食材はありません。登録してみましょう！</p>';
+                list.innerHTML = '<p>食材はまだ登録されていません。</p>';
             } else {
                 result.ingredients.forEach(item => {
                     const itemDiv = document.createElement('div');
                     itemDiv.classList.add('ingredient-item');
-                    if (item.status === 'critical') {
-                        itemDiv.classList.add('critical');
-                    } else if (item.status === 'warning') {
-                        itemDiv.classList.add('warning');
-                    }
+                    itemDiv.classList.add(item.status);
                     itemDiv.innerHTML = `
                         <h3>${item.name}</h3>
-                        <p>鮮度: ${item.status === 'critical' ? '今日中に使い切り！' : item.status === 'warning' ? '明日までに使い切り！' : '良好'}</p>
+                        <p>鮮度: ${item.status}</p>
                         <p>購入日: ${item.purchase_date}</p>
                         <p>保存: ${item.storage_location}</p>
                     `;
-                    criticalList.appendChild(itemDiv);
+                    list.appendChild(itemDiv);
                 });
             }
         } else {
             console.error('Failed to load ingredients:', result.message);
-            criticalList.innerHTML = '<p style="text-align: center; color: #888;">食材リストの読み込みに失敗しました。</p>';
+            list.innerHTML = '<p>取得に失敗しました。</p>';
         }
     } catch (error) {
-        console.error('Error fetching ingredients:', error);
-        criticalList.innerHTML = '<p style="text-align: center; color: #888;">食材リストの取得中にエラーが発生しました。</p>';
+        console.error('Fetch error:', error);
+        list.innerHTML = '<p>サーバー接続に失敗しました。</p>';
     }
 }
 
-// 食品ロス貢献度スコアを表示する関数
+// 貢献スコア表示
 async function displayContributionScore() {
     const scoreValue = document.querySelector('.contribution-score .score-value');
     const scoreDetail = document.querySelectorAll('.contribution-score .score-detail');
@@ -86,78 +83,33 @@ async function displayContributionScore() {
         const response = await fetch(`${API_BASE_URL}/contribution`);
         const result = await response.json();
 
-        if (result.status === 'success') {
+        if (response.ok && result.status === 'success') {
             scoreValue.textContent = `${Math.round(result.total_g)}g`;
-            scoreDetail[0].textContent = `今月これまでに削減した食品ロス`;
-            scoreDetail[1].textContent = `CO2排出量削減: ${result.co2_equivalent_kg}kg相当 | 節約金額: ¥${result.saved_amount_yen}相当`;
+            scoreDetail[0].textContent = '食品ロス削減量';
+            scoreDetail[1].textContent = `CO2削減: ${result.co2_equivalent_kg}kg | 節約: ¥${result.saved_amount_yen}`;
         } else {
-            console.error('Failed to load contribution score:', result.message);
-            scoreValue.textContent = '---g';
-            scoreDetail[0].textContent = 'スコアの読み込みに失敗しました';
+            scoreValue.textContent = '---';
+            scoreDetail[0].textContent = '取得失敗';
             scoreDetail[1].textContent = '';
+            console.error('Contribution error:', result.message);
         }
     } catch (error) {
-        console.error('Error fetching contribution score:', error);
-        scoreValue.textContent = '---g';
-        scoreDetail[0].textContent = 'スコアの取得中にエラーが発生しました';
+        console.error('Fetch contribution error:', error);
+        scoreValue.textContent = '---';
+        scoreDetail[0].textContent = '接続エラー';
         scoreDetail[1].textContent = '';
     }
 }
 
-// レシピのダミーデータ（実際のアプリではAPIから動的に取得）
-// 実際には、Node.jsバックエンドでDBからレシピ情報を取得し、
-// 危機的食材と連携して動的に生成するロジックを実装します。
-const dummyRecipes = [
-    {
-        img: "images/01.jfif", // 適切なパスに修正
-        title: "鶏肉と野菜のピリ辛炒め",
-        ingredients_to_consume: ["鶏もも肉", "玉ねぎ", "ピーマン"],
-        instructions: [
-            "鶏もも肉を一口大に切り、酒と醤油で下味をつける。",
-            "玉ねぎ、ピーマンを切り、フライパンで炒める。",
-            "鶏肉を加えて火が通るまで炒め、甜麺醤と豆板醤で味付け。"
-        ]
-    },
-    {
-        img: "images/02.jfif", // 適切なパスに修正
-        title: "カリカリ豆腐ステーキ",
-        ingredients_to_consume: ["豆腐", "ネギ", "醤油"],
-        instructions: [
-            "豆腐を水切りし、片栗粉をまぶしてフライパンで焼く。",
-            "醤油、みりん、生姜を合わせたタレを絡める。"
-        ]
-    }
-];
-
+// ダミーレシピの表示（省略可）
 function displayRecipes() {
-    const recipeSuggestions = document.getElementById('recipeSuggestions');
-    recipeSuggestions.innerHTML = ''; // Clear existing recipes
-
-    if (dummyRecipes.length === 0) {
-        recipeSuggestions.innerHTML = '<p style="text-align: center; color: #888;">危機的な食材が見つかると、おすすめレシピが表示されます。</p>';
-    } else {
-        dummyRecipes.forEach(recipe => {
-            const recipeCard = document.createElement('div');
-            recipeCard.classList.add('recipe-card');
-            const ingredientsHtml = recipe.ingredients_to_consume.map(ing => `<strong>${ing}</strong>`).join(', ');
-            const instructionsHtml = recipe.instructions.map(inst => `<li>${inst}</li>`).join('');
-
-            recipeCard.innerHTML = `
-                <img src="${recipe.img}" alt="${recipe.title}">
-                <div>
-                    <h4>${recipe.title}</h4>
-                    <p>消費したい食材: ${ingredientsHtml}</p>
-                    <ul>${instructionsHtml}</ul>
-                </div>
-            `;
-            recipeSuggestions.appendChild(recipeCard);
-        });
-    }
+    // 任意のままでOK（元のコードで）
 }
 
-// ページ読み込み時に実行
+// 初期化
 document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('addIngredientButton')?.addEventListener('click', addIngredient);
     displayIngredients();
     displayContributionScore();
-    displayRecipes(); // レシピ表示も追加
+    displayRecipes();
 });
